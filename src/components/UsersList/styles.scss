@@ -1,0 +1,21 @@
+.users-table {
+  width: 100%;
+  border-spacing: 0;
+
+  thead {
+    background-color: #b2bec3;
+  }
+
+  thead > tr > th {
+    text-align: left;
+  }
+
+  svg {
+    cursor: pointer;
+  }
+}
+
+.actions-container {
+  display: flex;
+  justify-content: space-around;
+}
