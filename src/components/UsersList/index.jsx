@@ -27,32 +27,42 @@ const initialState = {
   pageSize: 10,
 };
 
-const index = ({ dataUri }) => {
+const UserList = ({ dataUri, searchText }) => {
   const [state, dispatch] = useReducer(usersReducer, initialState);
 
   const { users, pageSize, currentPage } = state;
 
-  const totalPages = useMemo(() => {
-    return Math.ceil(users?.length / pageSize);
-  }, [users, pageSize]);
-
-  const isCurrentPageTheFirstPage = currentPage === 0;
-  const isCurrentPageTheLastPage = currentPage === totalPages - 1;
-
-  let isCheckboxSelected = false;
-  let currentChunk = [];
   const allPages = [];
-  if (users) {
-    currentChunk = users.slice(
+  const searchTextInLowerCase = searchText?.toLowerCase();
+
+  const filteredUsers = users?.filter((user) => {
+    for (let i = 0; i < fields?.length; i++) {
+      if (user[fields[i].key]?.toLowerCase().includes(searchTextInLowerCase)) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredUsers?.length / pageSize);
+  }, [filteredUsers, pageSize]);
+
+  const currentChunk = useMemo(() => {
+    if (!filteredUsers) {
+      return [];
+    }
+    return filteredUsers?.slice(
       currentPage * pageSize,
       (currentPage + 1) * pageSize
     );
+  }, [filteredUsers, currentPage]);
 
-    for (let i = 1; i <= totalPages; i++) {
-      allPages.push(i);
-    }
-
-    isCheckboxSelected = users.find((user) => user.checked);
+  const isCurrentPageTheFirstPage = currentPage === 0;
+  const isCurrentPageTheLastPage = currentPage === totalPages - 1;
+  const isCheckboxSelected = filteredUsers?.find((user) => user.checked);
+  for (let i = 1; i <= totalPages; i++) {
+    allPages.push(i);
   }
 
   useEffect(() => {
@@ -179,7 +189,7 @@ const index = ({ dataUri }) => {
   }
 
   return (
-    <div className="container my-4">
+    <div className="my-4">
       <table className="users-table">
         <thead>
           <tr>
@@ -202,10 +212,7 @@ const index = ({ dataUri }) => {
                 />
               </td>
               {fields.map((field) => (
-                <td
-                  key={`cell${field.key}${user.id}`}
-                  contentEditable={user.isEditing}
-                >
+                <td key={`cell${field.key}${user.id}`}>
                   {field.key === "actions" ? (
                     <>
                       <TrashIcon
@@ -218,7 +225,9 @@ const index = ({ dataUri }) => {
                       />
                     </>
                   ) : (
-                    user[field.key]
+                    <span contentEditable={user.isEditing}>
+                      {user[field.key]}
+                    </span>
                   )}
                 </td>
               ))}
@@ -322,4 +331,4 @@ function EditIcon({ className, onClick }) {
   );
 }
 
-export default index;
+export default UserList;
