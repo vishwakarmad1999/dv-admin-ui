@@ -25,12 +25,13 @@ const fields = [
 const initialState = {
   currentPage: 0,
   pageSize: 10,
+  isGlobalCheckboxSelected: false,
 };
 
 const UserList = ({ dataUri, searchText }) => {
   const [state, dispatch] = useReducer(usersReducer, initialState);
 
-  const { users, pageSize, currentPage } = state;
+  const { users, pageSize, currentPage, isGlobalCheckboxSelected } = state;
 
   const allPages = [];
   const searchTextInLowerCase = searchText?.toLowerCase();
@@ -71,10 +72,7 @@ const UserList = ({ dataUri, searchText }) => {
 
   async function fetchUsers() {
     const users = await http(dataUri);
-    dispatch({
-      type: "setUsers",
-      payload: users,
-    });
+    setUsers(users);
   }
 
   function gotoTheFirstPage() {
@@ -82,6 +80,7 @@ const UserList = ({ dataUri, searchText }) => {
       type: "setCurrentPage",
       payload: 0,
     });
+    unselectTheSelectedRows();
   }
 
   function gotoThePreviousPage() {
@@ -89,6 +88,7 @@ const UserList = ({ dataUri, searchText }) => {
       type: "setCurrentPage",
       payload: Math.max(0, currentPage - 1),
     });
+    unselectTheSelectedRows();
   }
 
   function gotoTheNextPage() {
@@ -96,6 +96,7 @@ const UserList = ({ dataUri, searchText }) => {
       type: "setCurrentPage",
       payload: Math.min(currentPage + 1, totalPages - 1),
     });
+    unselectTheSelectedRows();
   }
 
   function gotoTheLastPage() {
@@ -103,6 +104,7 @@ const UserList = ({ dataUri, searchText }) => {
       type: "setCurrentPage",
       payload: totalPages - 1,
     });
+    unselectTheSelectedRows();
   }
 
   function gotoPageNo(page) {
@@ -110,19 +112,46 @@ const UserList = ({ dataUri, searchText }) => {
       type: "setCurrentPage",
       payload: page - 1,
     });
+    unselectTheSelectedRows();
+  }
+
+  function unselectTheSelectedRows() {
+    const newUsers = users.map((user) => ({
+      ...user,
+      checked: false,
+    }));
+
+    setUsers(newUsers);
+
+    dispatch({
+      type: "toggleGlobalCheckbox",
+      payload: false,
+    });
   }
 
   function handleGlobalCheckboxChange(e) {
     const isChecked = e.target.checked;
 
-    const newUsers = users.map((user) => ({
-      ...user,
-      checked: isChecked,
-    }));
+    const newUsers = users.map((user, index) => {
+      if (
+        isChecked &&
+        index >= currentPage * 10 &&
+        index < (currentPage + 1) * 10
+      ) {
+        return {
+          ...user,
+          checked: true,
+        };
+      } else {
+        return { ...user, checked: false };
+      }
+    });
+
+    setUsers(newUsers);
 
     dispatch({
-      type: "setUsers",
-      payload: newUsers,
+      type: "toggleGlobalCheckbox",
+      payload: isChecked,
     });
   }
 
@@ -137,18 +166,12 @@ const UserList = ({ dataUri, searchText }) => {
       return user;
     });
 
-    dispatch({
-      type: "setUsers",
-      payload: newUsers,
-    });
+    setUsers(newUsers);
   }
 
   function handleUserDelete(id) {
     const newUsers = users.filter((user) => user.id !== id);
-    dispatch({
-      type: "setUsers",
-      payload: newUsers,
-    });
+    setUsers(newUsers);
   }
 
   function handleUserEdit(id) {
@@ -162,14 +185,34 @@ const UserList = ({ dataUri, searchText }) => {
       return user;
     });
 
+    setUsers(newUsers);
+  }
+
+  function deleteSelected() {
+    const newUsers = users.filter((user) => !user.checked);
+    setUsers(newUsers);
+
     dispatch({
-      type: "setUsers",
-      payload: newUsers,
+      type: "toggleGlobalCheckbox",
+      payload: false,
     });
   }
 
-  function deleteAll() {
-    const newUsers = users.filter((user) => !user.checked);
+  function handleFieldChange(id, field, value) {
+    const newUsers = users.map((user) => {
+      if (user.id === id) {
+        return {
+          ...user,
+          [field]: value,
+        };
+      }
+      return user;
+    });
+
+    setUsers(newUsers);
+  }
+
+  function setUsers(newUsers) {
     dispatch({
       type: "setUsers",
       payload: newUsers,
@@ -194,7 +237,11 @@ const UserList = ({ dataUri, searchText }) => {
         <thead>
           <tr>
             <th className="ps-3">
-              <input type="checkbox" onChange={handleGlobalCheckboxChange} />
+              <input
+                type="checkbox"
+                checked={isGlobalCheckboxSelected}
+                onChange={handleGlobalCheckboxChange}
+              />
             </th>
             {fields.map((field) => (
               <th key={field.key}>{field.text}</th>
@@ -224,10 +271,15 @@ const UserList = ({ dataUri, searchText }) => {
                         onClick={() => handleUserEdit(user.id)}
                       />
                     </>
+                  ) : user.isEditing ? (
+                    <input
+                      value={user[field.key]}
+                      onInput={(e) =>
+                        handleFieldChange(user.id, field.key, e.target.value)
+                      }
+                    />
                   ) : (
-                    <span contentEditable={user.isEditing}>
-                      {user[field.key]}
-                    </span>
+                    user[field.key]
                   )}
                 </td>
               ))}
@@ -240,7 +292,7 @@ const UserList = ({ dataUri, searchText }) => {
         <button
           className="delete-all btn btn-danger"
           disabled={!isCheckboxSelected}
-          onClick={deleteAll}
+          onClick={deleteSelected}
         >
           Delete Selected
         </button>

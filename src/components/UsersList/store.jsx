@@ -18,5 +18,11 @@ export default function (state, action) {
         currentPage: action.payload,
       };
     }
+    case "toggleGlobalCheckbox": {
+      return {
+        ...state,
+        isGlobalCheckboxSelected: action.payload,
+      };
+    }
   }
 }
